@@ -4,28 +4,104 @@ output: html_document
 date: "2025-10-31"
 ---
 
+# Research Question: 
+# Trends in Salbutamol Prescriptions in Scotland 2024. 
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+```{r}
+library(tidyverse)
+library(janitor)
+library(gt)
+library(here)
+library(stringr)
 ```
 
-## Including Plots
+```{r}
+# Data wrangling to produce a dataset only featuring data relating to bronchodilator prescriptions in Scotland.
 
-You can also embed plots, for example:
+jantojun_2024 <- read_csv("https://www.opendata.nhs.scot/dataset/84393984-14e9-4b0d-a797-b288db64d088/resource/f0df380b-3f9b-4536-bb87-569e189b727a/download/hb_pitc2024_01_06-1.csv") %>% 
+  clean_names()
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+jultodec_2024 <- read_csv("https://www.opendata.nhs.scot/dataset/84393984-14e9-4b0d-a797-b288db64d088/resource/f3b9f2e2-66c0-4310-9b8e-734781d2ed0a/download/hb_pitc2024_07_12-1.csv") %>% 
+  clean_names()
 
-60+7
+# Combine the two datasets into one to cover the full year of 2024
+data_2024 <- bind_rows(jantojun_2024, jultodec_2024)
+
+# Read healthboard lookup 
+hb_names <- read_csv(here("data", "hb14_hb19 (1).csv")) %>% 
+  clean_names()
+
+# Assigns the names of the health boards to its corresponding HBT numeric code by joining with a healthboard lookup table.
+data_2024_with_names <- 
+  full_join(hb_names, data_2024, by = c("hb" = "hbt")) %>% 
+  filter(!is.na(hb_name))
+
+# Filter for bronchodilators only using the BNF code for bronchodilators (0301).
+bronchodilators_2024 <- data_2024_with_names %>% 
+  filter(str_starts(bnf_item_code, "0301")) %>% 
+  select(-hb_date_enacted, -hb_date_archived, -country, -dmd_code)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+# Assessing which bronchodilators are the most widely prescribed.
+
+top5_bronchodilators <- bronchodilators_2024 %>% 
+  select(bnf_item_description, number_of_paid_items) %>% 
+  group_by(bnf_item_description) %>%
+  summarise(paid_items_total = sum(number_of_paid_items)) %>% 
+  slice_max(paid_items_total, n = 5)
+
+# Creates a bar chart showing top 5 most prescribed bronchodilators.
+count_plot <- top5_bronchodilators %>% 
+  ggplot(aes(x= paid_items_total, 
+             y= reorder(str_wrap(bnf_item_description, 
+                                 width = 30),
+                        paid_items_total))) +
+  geom_col(fill = "steelblue") +
+  labs(title = "Top 5 Most Prescribed Bronchodilators",
+       subtitle = "Scotland (2024)",
+       x = "Prescriptions Issued", 
+       y = "Bronchodilator") +
+  theme_minimal()
+
+count_plot
+```
+Figure 1. Top 5 most commonly prescribed bronchodilators in Scotland (2024). Salbutamol-based drugs are dominant in this ranking, with ranks 1, 2 and 5 all representing formulations of Salbutamol.
+```{r}
+# Assessing monthly patterns in Salbutamol prescriptions.
+
+# Filters data for only Salbutamol-based drugs, using its BNF code to ensure brand names such as 'Ventolin' are not excluded.
+salbutamol <- bronchodilators_2024 %>% 
+  filter(str_detect(bnf_item_code, "0301011R0")) 
+
+# Creates a dataset to show number of Salbutamol prescriptions per month. 
+salbutamol_monthly <- salbutamol %>% 
+# Change 'paid_date_month' into a factor.
+  mutate(
+    paid_date_month = parse_date_time(paid_date_month, "ym"),
+    month = factor(format(paid_date_month, "%B"), 
+                   levels = month.name)) %>% 
+  group_by(month) %>% 
+  summarise(paid_items_total = sum(number_of_paid_items))
+
+# Creates a line graph with trend line.
+monthly_plot <- salbutamol_monthly %>% 
+  ggplot(aes(x = month, y = paid_items_total, group = 1)) +
+  geom_line(colour = "steelblue") +
+  geom_point(colour = "#2E5D91", size = 2) +
+  geom_smooth(se = FALSE, colour = "#87CEFA", 
+              linetype = "dashed", linewidth = 0.5) +
+  labs(title = "Salbutamol Prescriptions per Month",
+       subtitle = "Scotland (2024)",
+       x = "Month", 
+       y = "Number of Prescriptions") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 25))
+
+monthly_plot
+```
+Figure 2. Salbutamol prescriptions per month in Scotland (2024). Trend line shows increase in prescriptions during winter months.
