@@ -16,7 +16,8 @@ library(tidyverse)
 library(janitor)
 library(gt)
 library(here)
-library(stringr)
+library(sf)
+library(ggspatial)
 ```
 
 ```{r}
@@ -31,11 +32,11 @@ jultodec_2024 <- read_csv("https://www.opendata.nhs.scot/dataset/84393984-14e9-4
 # Combine the two datasets into one to cover the full year of 2024
 data_2024 <- bind_rows(jantojun_2024, jultodec_2024)
 
-# Read healthboard lookup 
+# Read healthboard lookup table
 hb_names <- read_csv(here("data", "hb14_hb19 (1).csv")) %>% 
   clean_names()
 
-# Assigns the names of the health boards to its corresponding HBT numeric code by joining with a healthboard lookup table.
+# Assigns the names of the health boards to its corresponding HBT numeric code by joining with the healthboard lookup table.
 data_2024_with_names <- 
   full_join(hb_names, data_2024, by = c("hb" = "hbt")) %>% 
   filter(!is.na(hb_name))
@@ -66,7 +67,8 @@ count_plot <- top5_bronchodilators %>%
        subtitle = "Scotland (2024)",
        x = "Prescriptions Issued", 
        y = "Bronchodilator") +
-  theme_minimal()
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold"))
 
 count_plot
 ```
@@ -98,10 +100,97 @@ monthly_plot <- salbutamol_monthly %>%
   labs(title = "Salbutamol Prescriptions per Month",
        subtitle = "Scotland (2024)",
        x = "Month", 
-       y = "Number of Prescriptions") +
+       y = "Prescriptions Issued") +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 25))
+  theme(axis.text.x = element_text(angle = 25),
+        plot.title = element_text(face = "bold"))
 
 monthly_plot
 ```
 Figure 2. Salbutamol prescriptions per month in Scotland (2024). Trend line shows increase in prescriptions during winter months.
+
+```{r}
+# Data wrangling to produce Salbutamol prescriptions data based on population of health boards across Scotland (2024).
+
+# Dataset with population estimates of each healthboard (1981-2024)
+hb_population <- read_csv("https://www.opendata.nhs.scot/dataset/7f010430-6ce1-4813-b25c-f7f335bdc4dc/resource/27a72cc8-d6d8-430c-8b4f-3109a9ceadb1/download/hb2019_pop_est_03102025.csv") %>% 
+  clean_names()
+
+#Filter for only 2024
+pop_2024 <- hb_population %>% 
+  filter(year == "2024")
+
+# Create dataset with the populations for each healthboard for 2024.
+pop_2024_with_names <- 
+  full_join(hb_names, pop_2024, by = c("hb" = "hb")) %>% 
+  rename(population_2024 = "all_ages") %>% 
+  filter(!is.na(hb_name), sex == "All") %>% 
+  select(hb_name, population_2024)
+
+# Creates a dataset to show number of prescriptions issued for each healthboard. 
+salbutamol_byhb <- salbutamol %>% 
+  group_by(hb_name) %>% 
+  summarise(paid_items_total = sum(number_of_paid_items)) %>% 
+  rename(prescriptions = "paid_items_total")
+  
+# Add population data and new column for prescriptions per 100k.
+salbutamol_pop <- 
+  full_join(salbutamol_byhb, pop_2024_with_names, 
+                            by = c("hb_name" = "hb_name")) %>% 
+  mutate(prescriptions_per_100k 
+         = prescriptions/population_2024*100000) %>% 
+  arrange(desc(prescriptions)) %>% 
+  mutate(Rank = row_number()) %>% 
+  select(Rank, hb_name, population_2024, prescriptions, prescriptions_per_100k)
+```
+
+
+```{r}
+# Assessing Salbutamol prescriptions trends by health board with a gt table.
+table <- salbutamol_pop %>% 
+  arrange(desc(prescriptions)) %>% 
+  gt() %>% 
+  cols_label(hb_name = "Health Board", 
+             prescriptions = "Prescriptions Issued", 
+             population_2024 = "Population", 
+             prescriptions_per_100k = 
+               "Prescriptions per 100k Population") %>% 
+  tab_header(title = "Salbutamol Prescriptions Ranked by Health Board",
+             subtitle = "Scotland (2024)") %>% 
+  fmt_number(columns = c(population_2024, prescriptions, prescriptions_per_100k), decimals = 0) %>% 
+  grand_summary_rows(
+    columns = c(prescriptions, prescriptions_per_100k), 
+                     fns = list("Average"= ~mean(.,na.rm = TRUE)))
+
+table
+```
+Figure 3. Table ranking total Salbutamol prescriptions by Scottish health board. Note with prescriptions per 100k population, many patients will likely have repeat prescriptions.
+```{r}
+# Assessing Salbutamol prescription trends by NHS health board population by creating a map.
+
+# Read NHS health board shapes for map and add "NHS" in front of HBName to match salbutamol_pop dataset.
+map <- 
+  st_read(here("data", "Week6_NHS_healthboards_2019.shp")) %>% 
+  mutate(HBName = paste0("NHS ", HBName))
+
+# Join with map data.
+prescription_mapped <- 
+  full_join(map, salbutamol_pop, by = c("HBName" = "hb_name")) %>%   filter(!is.na(HBCode))
+
+# Create map
+prescription_map <- prescription_mapped %>% 
+  ggplot(aes(fill = prescriptions_per_100k)) +
+  geom_sf(colour = "black", size = 0.1) +
+  scale_fill_distiller(palette = "Blues", 
+                       direction = 1, 
+                       name = "Prescriptions per 100k") +
+  labs(title = "Salbutamol Prescriptions by NHS Healthboard (2024)", 
+       subtitle = "Rate per 100k people") +
+  theme_void() +
+  theme(plot.title = element_text(face = "bold"), 
+        legend.title = element_text(size = 10))
+
+prescription_map
+```
+Figure 4.   Rates of Salbutamol prescriptions per 100k people across Scottish health boards in 2024.
+Rates are high across areas like Dumfries and Galloway and NHS Lanakshire.
