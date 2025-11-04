@@ -1,11 +1,12 @@
 ---
-title: "Assessment"
-output: html_document
+title: "Geographical and Monthly Trends of Salbutamol Prescriptions Across Scotland (2024)"
+output: 
+  html_document:
+  theme: flatly
 date: "2025-10-31"
 ---
-
-# Research Question: 
-# Trends in Salbutamol Prescriptions in Scotland 2024. 
+# Introduction
+Salbutamol is a short acting beta agonist which provides acute relief of symptoms of asthma and chronic obstructive pulmonary disease (COPD). It is a widely prescribed drug, thus making it a useful indicator to makes inferences on respiratory health across Scotland. This project aims to explore the monthly and geographical trends in Salbutamol prescribing throughout Scotland in 2024.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -72,7 +73,9 @@ count_plot <- top5_bronchodilators %>%
 
 count_plot
 ```
-Figure 1. Top 5 most commonly prescribed bronchodilators in Scotland (2024). Salbutamol-based drugs are dominant in this ranking, with ranks 1, 2 and 5 all representing formulations of Salbutamol.
+Figure 1. Top 5 most commonly prescribed bronchodilators in Scotland (2024). 
+
+Salbutamol-based drugs are dominant in this ranking, with ranks 1, 2 and 5 all representing formulations of Salbutamol. This highlights the wide usage of Salbutamol in Scotland as well as suggesting a high prevelance of asthma and COPD in the country.
 ```{r}
 # Assessing monthly patterns in Salbutamol prescriptions.
 
@@ -107,7 +110,9 @@ monthly_plot <- salbutamol_monthly %>%
 
 monthly_plot
 ```
-Figure 2. Salbutamol prescriptions per month in Scotland (2024). Trend line shows increase in prescriptions during winter months.
+Figure 2. Salbutamol prescriptions per month in Scotland (2024). 
+
+The Trend line shows increase in prescriptions during winter months. This is likely due to an increase in asthma and COPD symptoms during colder weather.
 
 ```{r}
 # Data wrangling to produce Salbutamol prescriptions data based on population of health boards across Scotland (2024).
@@ -154,7 +159,7 @@ table <- salbutamol_pop %>%
              prescriptions = "Prescriptions Issued", 
              population_2024 = "Population", 
              prescriptions_per_100k = 
-               "Prescriptions per 100k Population") %>% 
+               "Prescriptions per 100k") %>% 
   tab_header(title = "Salbutamol Prescriptions Ranked by Health Board",
              subtitle = "Scotland (2024)") %>% 
   fmt_number(columns = c(population_2024, prescriptions, prescriptions_per_100k), decimals = 0) %>% 
@@ -164,7 +169,9 @@ table <- salbutamol_pop %>%
 
 table
 ```
-Figure 3. Table ranking total Salbutamol prescriptions by Scottish health board. Note with prescriptions per 100k population, many patients will likely have repeat prescriptions.
+Figure 3. Table ranking total Salbutamol prescriptions by Scottish health board. 
+
+NHS Greater Glasgow and Clyde has the most prescriptions amongt all the healthboards. This is likely due to the large population. Note that with prescriptions per 100k population, many patients will likely have repeat prescriptions.
 ```{r}
 # Assessing Salbutamol prescription trends by NHS health board population by creating a map.
 
@@ -193,6 +200,6 @@ prescription_map <- prescription_mapped %>%
 prescription_map
 ```
 Figure 4.   Rates of Salbutamol prescriptions per 100k people across Scottish health boards in 2024.
-Rates are high across areas like Dumfries and Galloway and Lanarkshire.
 
+Rates are highest per 100k across areas such as Dumfries and Galloway and Lanarkshire, and lowest in areas such as Shetland and Orkney. Potential factors may be due to better air quality in Shetland and Orkney, or differing prescribing patterns amongst different health boards.
 
