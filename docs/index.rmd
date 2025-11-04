@@ -193,4 +193,6 @@ prescription_map <- prescription_mapped %>%
 prescription_map
 ```
 Figure 4.   Rates of Salbutamol prescriptions per 100k people across Scottish health boards in 2024.
-Rates are high across areas like Dumfries and Galloway and NHS Lanakshire.
+Rates are high across areas like Dumfries and Galloway and Lanarkshire.
+
+
