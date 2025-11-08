@@ -1,0 +1,173 @@
+---
+title: "other plots"
+output: html_document
+date: "2025-11-07"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, message = FALSE}
+# Assessing monthly patterns in Salbutamol prescriptions.
+
+# Filters data for only Salbutamol-based drugs, using its BNF code to ensure brand names such as 'Ventolin' are not excluded.
+salbutamol <- bronchodilators_2024 %>% 
+  filter(str_detect(bnf_item_code, "0301011R0")) 
+
+# Creates a dataset to show number of Salbutamol prescriptions per month. 
+salbutamol_monthly <- salbutamol %>% 
+# Change 'paid_date_month' into a factor.
+  mutate(
+    paid_date_month = parse_date_time(paid_date_month, "ym"),
+    month = factor(format(paid_date_month, "%B"), 
+                   levels = month.name)) %>% 
+  group_by(month) %>% 
+  summarise(paid_items_total = sum(number_of_paid_items))
+
+# Creates a line graph with trend line.
+monthly_plot <- salbutamol_monthly %>% 
+  ggplot(aes(x = month, y = paid_items_total, group = 1)) +
+  geom_line(colour = "steelblue") +
+  geom_point(colour = "#2E5D91", size = 2) +
+  geom_smooth(se = FALSE, colour = "#87CEFA", 
+              linetype = "dashed", linewidth = 0.5) +
+  labs(title = "Salbutamol Prescriptions per Month",
+       subtitle = "Scotland (2024)",
+       x = "Month", 
+       y = "Prescriptions Issued") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 25),
+        plot.title = element_text(face = "bold"))
+
+monthly_plot
+```
+Figure 2. Salbutamol prescriptions per month in Scotland (2024). 
+
+The Trend line shows increase in prescriptions during winter months. This is likely due to an increase in asthma and COPD symptoms during colder weather.
+
+```{r, message = FALSE}
+# Data wrangling to produce Salbutamol prescriptions data based on population of health boards across Scotland (2024).
+
+# Dataset with population estimates of each healthboard (1981-2024)
+hb_population <- read_csv("https://www.opendata.nhs.scot/dataset/7f010430-6ce1-4813-b25c-f7f335bdc4dc/resource/27a72cc8-d6d8-430c-8b4f-3109a9ceadb1/download/hb2019_pop_est_03102025.csv") %>% 
+  clean_names()
+
+#Filter for only 2024
+pop_2024 <- hb_population %>% 
+  filter(year == "2024")
+
+# Create dataset with the populations for each healthboard for 2024.
+pop_2024_with_names <- 
+  full_join(hb_names, pop_2024, by = c("hb" = "hb")) %>% 
+  rename(population_2024 = "all_ages") %>% 
+  filter(!is.na(hb_name), sex == "All") %>% 
+  select(hb_name, population_2024)
+
+# Creates a dataset to show number of prescriptions issued for each healthboard. 
+salbutamol_byhb <- salbutamol %>% 
+  group_by(hb_name) %>% 
+  summarise(paid_items_total = sum(number_of_paid_items)) %>% 
+  rename(prescriptions = "paid_items_total")
+  
+# Add population data and new column for prescriptions per 100k.
+salbutamol_pop <- 
+  full_join(salbutamol_byhb, pop_2024_with_names, 
+                            by = c("hb_name" = "hb_name")) %>% 
+  mutate(prescriptions_per_100k 
+         = prescriptions/population_2024*100000) %>% 
+  arrange(desc(prescriptions_per_100k)) %>% 
+  mutate(Rank = row_number()) %>% 
+  select(Rank, hb_name, prescriptions_per_100k, prescriptions, population_2024)
+```
+
+```{r, message = FALSE}
+# Read SIMD data and summarise each health board's average SIMD.
+simd_average <- read_csv("https://www.opendata.nhs.scot/dataset/78d41fa9-1a62-4f7b-9edb-3e8522a93378/resource/acade396-8430-4b34-895a-b3e757fa346e/download/simd2020v2_22062020.csv") %>% 
+  select(HB, SIMD2020V2CountryDecile) %>% 
+  group_by(HB) %>% 
+  summarise(average_decile = mean(SIMD2020V2CountryDecile)) %>% 
+  mutate(average_decile = round(average_decile, digits = 1))
+
+# Join with health board names.
+hb_simd <- 
+  full_join(simd_average, hb_names, by = c("HB" = "hb")) %>% 
+  select(hb_name, average_decile)
+
+# Add SIMD averages to Salbutamol population dataset.
+salbutamol_data <- 
+  full_join(salbutamol_pop, hb_simd, by = "hb_name")
+```
+
+```{r, message = FALSE}
+# Assessing Salbutamol prescriptions trends by health board with a gt table.
+table <- salbutamol_data %>% 
+  arrange(Rank) %>% 
+  gt() %>% 
+  cols_label(hb_name = "Health Board", 
+             prescriptions = "Prescriptions Issued", 
+             population_2024 = "Population", 
+             prescriptions_per_100k =  "Prescriptions per 100k", 
+             average_decile = "Average SIMD Decile (1-10)") %>% 
+  tab_header(title = "Salbutamol Prescriptions per Capita Ranked by Health Board",
+             subtitle = "Scotland (2024)") %>% 
+  tab_style(list(cell_fill(color = "steelblue")), 
+            locations = cells_title()) %>% 
+  tab_style(list(cell_text(weight = "bold", color = "white")), 
+            locations = cells_title()) %>% 
+  fmt_number(columns = c(population_2024, prescriptions, prescriptions_per_100k), decimals = 0) %>% 
+  cols_align(align = "right",
+             columns = c(prescriptions_per_100k:average_decile)) %>% 
+  cols_align(align = "center", columns = Rank) %>%
+  grand_summary_rows(columns = c(prescriptions_per_100k, prescriptions, average_decile), 
+  fns = list("Average"= ~mean(.,na.rm = TRUE)), 
+  fmt = list(~ fmt_number(.,decimals = 1)))
+
+table
+```
+Figure 3. Table ranking total Salbutamol prescriptions by Scottish health board. 
+
+NHS Greater Glasgow and Clyde has the most prescriptions amongst all the health boards. This is likely due to the large population. Note that with prescriptions per 100k population, many patients will likely have repeat prescriptions.
+```{r, message = FALSE}
+# Assessing Salbutamol prescription trends by NHS health board population by creating a map.
+
+# Read NHS health board shapes for map and add "NHS" in front of HBName to match 'salbutamol_pop' dataset.
+map <- 
+  st_read(here("data", "Week6_NHS_healthboards_2019.shp")) %>% 
+  mutate(HBName = paste0("NHS ", HBName))
+
+# Join with map data.
+prescription_mapped <- 
+  full_join(map, salbutamol_data, by = c("HBName" = "hb_name")) %>%      filter(!is.na(HBCode))
+
+# Create map
+prescription_map <- prescription_mapped %>% 
+  ggplot(aes(fill = prescriptions_per_100k)) +
+  geom_sf(colour = "black", size = 0.1) +
+  scale_fill_distiller(palette = "Blues", 
+                       direction = 1, 
+                       name = "Prescriptions per 100k") +
+  labs(title = "Salbutamol Prescriptions \n by NHS Healthboard (2024)", 
+       subtitle = "Rate per 100k people") +
+  theme_void() +
+  theme(plot.title = element_text(face = "bold"), 
+        legend.title = element_text(size = 10))
+
+# Creates Map of SIMD decile averages for each Scottish healthboard
+simd_map <- prescription_mapped %>% 
+  ggplot(aes(fill = average_decile)) +
+  geom_sf(colour = "white", size = 0.1) +
+  labs(title = "Average SIMD Decile (1-10) \n per Health Board",
+       subtitle = "Scotland") +
+  scale_fill_discrete() +
+  theme_void() +
+  theme(plot.title = element_text(face = "bold"), 
+        legend.title = element_text(size = 10))
+
+# Combine maps into the same plot. # make colours less extreme
+prescription_map + simd_map
+```
+Figure 4.   Rates of Salbutamol prescriptions per 100k people across Scottish health boards in 2024.
+
+Rates are highest per 100k across areas such as Dumfries and Galloway and Lanarkshire, and lowest in areas such as Shetland and Grampian. Potential factors may be due to better air quality in Shetland and Grampian, or differing prescribing patterns amongst different health boards.
+
