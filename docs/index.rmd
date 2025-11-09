@@ -2,10 +2,10 @@
 title: "Exploring Trends of Salbutamol Prescriptions Across Scotland (2024)"
 output: 
   html_document:
-  theme: flatly
-  toc: true
-  toc_float: true
-  code_folding: hide
+    theme: flatly
+    toc: true
+    toc_float: true
+    code_folding: hide
 date: "2025-10-31"
 ---
 
@@ -262,7 +262,7 @@ simd_map <- prescription_mapped %>%
   theme(plot.title = element_text(face = "bold"), 
         legend.title = element_text(size = 10))
 
-# Combine maps into the same plot. # make colours less extreme
+# Combine maps into the same plot. 
 prescription_map + simd_map
 ```
 Figure 4. Maps visualising prescription rates across NHS Scotland health boards (left) and average SIMD decile across NHS Scotland health boards (right). In general, areas with higher average deciles see lower prescription rates.
