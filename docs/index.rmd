@@ -3,6 +3,9 @@ title: "Exploring Trends of Salbutamol Prescriptions Across Scotland (2024)"
 output: 
   html_document:
   theme: flatly
+  toc: true
+  toc_float: true
+  code_folding: hide
 date: "2025-10-31"
 ---
 
@@ -55,7 +58,7 @@ bronchodilators_2024 <- data_2024_with_names %>%
   select(-hb_date_enacted, -hb_date_archived, -country, -dmd_code)
 ```
 
-# Section 1: How commonly Used is Salbutamol in Relation to Other Bronchodilators?
+# Section 1: How Commonly Used is Salbutamol in Relation to Other Bronchodilators?
 
 ```{r, message = FALSE}
 # Assessing which bronchodilators are the most widely prescribed.
@@ -224,7 +227,8 @@ NHS Dumfries and Galloway has the highest prescriptions issued per 100k populati
 
 # Read NHS health board shapes for map and add "NHS" in front of HBName to match 'salbutamol_pop' dataset.
 map <- 
-  st_read(here("data", "Week6_NHS_healthboards_2019.shp")) %>% 
+  st_read(here("data", "Week6_NHS_healthboards_2019.shp"), 
+          quiet = TRUE) %>% 
   mutate(HBName = paste0("NHS ", HBName))
 
 # Join with map data.
