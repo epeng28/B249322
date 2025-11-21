@@ -19,6 +19,7 @@ knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 ```
 
 ```{r, message = FALSE}
+# Packages Used
 library(tidyverse)
 library(janitor)
 library(gt)
@@ -26,6 +27,8 @@ library(here)
 library(sf)
 library(ggspatial)
 library(patchwork)
+# For interactive plots
+library(plotly)
 ```
 
 ```{r, message = FALSE}
@@ -63,6 +66,7 @@ bronchodilators_2024 <- data_2024_with_names %>%
 ```{r, message = FALSE}
 # Assessing which bronchodilators are the most widely prescribed.
 
+# Finds the top 5 most prescribed drugs amongst the bronchodilators.
 top5_bronchodilators <- bronchodilators_2024 %>% 
   select(bnf_item_description, number_of_paid_items) %>% 
   group_by(bnf_item_description) %>%
@@ -89,5 +93,220 @@ count_plot
 Figure 1. 
 
 Based on the graph, Salbutamol-based drugs are dominant in this ranking, with ranks 1, 2 and 5 all representing formulations of Salbutamol. This highlights the widespread usage of Salbutamol in Scotland as well as suggesting a high prevalence of asthma and COPD in the country. It also reflects its role in first line therapy in the management of acute symptoms of asthma recommended by NICE (2025), and its usage as a short acting bronchodilator for breathlessness in COPD, as recommended by the NHS (2023).
+
+# Section 2: How do Salbutamol Prescription Levels Vary per Month?
+
+```{r, message = FALSE}
+# Assessing monthly patterns in Salbutamol prescriptions.
+
+# Filters data for only Salbutamol-based drugs, using its BNF code to ensure brand names such as 'Ventolin' are not excluded.
+salbutamol <- bronchodilators_2024 %>% 
+  filter(str_detect(bnf_item_code, "0301011R0")) 
+
+# Creates a dataset to show number of Salbutamol prescriptions per month.
+salbutamol_monthly <- salbutamol %>% 
+# Change 'paid_date_month' into a factor.
+  mutate(
+    paid_date_month = parse_date_time(paid_date_month, "ym"),
+    month = factor(format(paid_date_month, "%B"), 
+                   levels = month.name)) %>% 
+  group_by(month) %>% 
+  summarise(paid_items_total = sum(number_of_paid_items))
+
+# Creates a line graph with trend line.
+monthly_plot <- salbutamol_monthly %>% 
+  ggplot(aes(x = month, y = paid_items_total, group = 1,
+             text = paste0(month, "<br>", "Prescriptions: ", paid_items_total))) +
+  geom_line(colour = "steelblue") +
+  geom_point(colour = "#2E5D91", size = 2) +
+  geom_smooth(se = FALSE, colour = "#87CEFA", 
+              linetype = "dashed", linewidth = 0.5) +
+  labs(title = "Salbutamol Prescriptions \n per Month",
+       subtitle = "Scotland (2024)",
+       x = "Month", 
+       y = "Prescriptions Issued") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 25),
+        plot.title = element_text(face = "bold"))
+
+# Make it have interactive features
+ggplotly(monthly_plot, tooltip = "text")
+```
+
+Figure 2. Interactive line graph. Hover mouse over line graph to see exact figures.
+
+The dashed trend line shows a noticeable increase in prescriptions during the winter months, particularly in December. This likely reflects the seasonal exacerbations in asthma and COPD symptoms triggered by colder weather. The NHS recognises cold air and infection as triggers for asthma symptoms (NHS, 2025).
+
+Additionally, the line graph shows a spike in prescriptions during May. This may be due to higher pollen levels in spring, which is also recognised by the NHS as a trigger for asthma symptoms (NHS, 2025). 
+
+# Section 3: Geographical and Socioeconomic Variation in Salbutamol Prescribing
+
+This section aims to explore the geographical and socioeconomic variation in Salbutamol prescription trends. 
+
+Deprivation levels were based of the latest data from Scottish Index of Multiple Deprivation (SIMD) in 2020. SIMD bases deprivation of seven domains: income, employment, education, health, access to services, crime and housing. Deprivation levels are split into deciles from 1-10, with decile 1 being most deprived and decile 10 being least deprived. As SIMD data is split across 6,976 areas, the average decile was taken for each health board (Scottish Government, n.d.).
+
+```{r, message = FALSE}
+# Data wrangling to produce Salbutamol prescriptions data based on population of health boards across Scotland (2024).
+
+# Dataset with population estimates of each health board (1981-2024)
+hb_population <- read_csv("https://www.opendata.nhs.scot/dataset/7f010430-6ce1-4813-b25c-f7f335bdc4dc/resource/27a72cc8-d6d8-430c-8b4f-3109a9ceadb1/download/hb2019_pop_est_03102025.csv") %>% 
+  clean_names()
+
+#Filter for only 2024
+pop_2024 <- hb_population %>% 
+  filter(year == "2024")
+
+# Create dataset with the populations for each healthboard for 2024.
+pop_2024_with_names <- 
+  full_join(hb_names, pop_2024, by = c("hb" = "hb")) %>% 
+  rename(population_2024 = "all_ages") %>% 
+  filter(!is.na(hb_name), sex == "All") %>% 
+  select(hb_name, population_2024)
+
+# Creates a dataset to show number of prescriptions issued for each healthboard. 
+salbutamol_byhb <- salbutamol %>% 
+  group_by(hb_name) %>% 
+  summarise(paid_items_total = sum(number_of_paid_items)) %>% 
+  rename(prescriptions = "paid_items_total")
+  
+# Add population data and new column for prescriptions per 100k.
+salbutamol_population <- 
+  full_join(salbutamol_byhb, pop_2024_with_names, 
+                            by = c("hb_name" = "hb_name")) %>% 
+  mutate(prescriptions_per_100k 
+         = prescriptions/population_2024*100000) %>% 
+  arrange(desc(prescriptions_per_100k)) %>% 
+  mutate(Rank = row_number()) %>% 
+  select(Rank, hb_name, prescriptions_per_100k, prescriptions, population_2024)
+```
+
+```{r, message = FALSE}
+# Read SIMD data and summarise each health board's average SIMD.
+simd_average <- read_csv("https://www.opendata.nhs.scot/dataset/78d41fa9-1a62-4f7b-9edb-3e8522a93378/resource/acade396-8430-4b34-895a-b3e757fa346e/download/simd2020v2_22062020.csv") %>% 
+  select(HB, SIMD2020V2CountryDecile) %>% 
+  group_by(HB) %>% 
+  summarise(average_decile = mean(SIMD2020V2CountryDecile)) %>% 
+  mutate(average_decile = round(average_decile, digits = 1))
+
+# Join with health board names.
+hb_simd <- 
+  full_join(simd_average, hb_names, by = c("HB" = "hb")) %>% 
+  select(hb_name, average_decile)
+
+# Add SIMD averages to Salbutamol population dataset.
+salbutamol_data <- 
+  full_join(salbutamol_population, hb_simd, by = "hb_name")
+```
+
+```{r, message = FALSE}
+# Assessing Salbutamol prescriptions trends by health board with a gt table.
+table <- salbutamol_data %>% 
+  arrange(Rank) %>% 
+  gt() %>% 
+  cols_label(hb_name = "Health Board", 
+             prescriptions = "Prescriptions Issued", 
+             population_2024 = "Population", 
+             prescriptions_per_100k =  "Prescriptions per 100k", 
+             average_decile = "Average SIMD Decile (1-10)") %>% 
+  tab_header(title = "Salbutamol Prescriptions per Capita Ranked by Health Board",
+             subtitle = "Scotland (2024)") %>% 
+  tab_style(list(cell_fill(color = "steelblue")), 
+            locations = cells_title()) %>% 
+  tab_style(list(cell_text(weight = "bold", color = "white")), 
+            locations = cells_title()) %>% 
+  fmt_number(columns = c(population_2024, prescriptions, prescriptions_per_100k), decimals = 0) %>% 
+  cols_align(align = "right",
+             columns = c(prescriptions_per_100k:average_decile)) %>% 
+  cols_align(align = "center", columns = Rank) %>%
+  grand_summary_rows(columns = c(prescriptions_per_100k, prescriptions, average_decile), 
+  fns = list("Average"= ~mean(.,na.rm = TRUE)), 
+  fmt = list(~ fmt_number(.,decimals = 1)))
+
+table
+```
+Figure 3. Table ranking total the Salbutamol prescriptions per 100k people by Scottish health board. Note that an individual may have multiple prescriptions.
+
+NHS Dumfries and Galloway has the highest prescriptions issued per 100k population, followed by NHS Lanarkshire. NHS Orkney and NHS Grampian have the lowest prescription rates.
+
+```{r, message = FALSE}
+# Assessing Salbutamol prescription trends by NHS health board population by creating a map.
+
+# Read NHS health board shapes for map and add "NHS" in front of HBName to match 'salbutamol_pop' dataset.
+map <- 
+  st_read(here("data", "Week6_NHS_healthboards_2019.shp"), 
+          quiet = TRUE) %>% 
+  mutate(HBName = paste0("NHS ", HBName))
+
+# Join with map data.
+prescription_mapped <- 
+  full_join(map, salbutamol_data, by = c("HBName" = "hb_name")) %>%      filter(!is.na(HBCode))
+
+# Create map of Salbutamol prescriptions.
+prescription_map <- prescription_mapped %>% 
+  ggplot(aes(fill = prescriptions_per_100k)) +
+  geom_sf(colour = "black", size = 0.1) +
+  scale_fill_distiller(palette = "Blues", 
+                       direction = 1, 
+                       name = "Prescriptions per 100k") +
+  labs(title = "Salbutamol Prescriptions \n by NHS Healthboard (2024)",
+       subtitle = "Rate per 100k people") +
+  theme_void() +
+  theme(plot.title = element_text(face = "bold"), 
+        legend.title = element_text(size = 10))
+
+# Creates Map of SIMD decile averages for each Scottish health board
+simd_map <- prescription_mapped %>% 
+  ggplot(aes(fill = average_decile)) +
+  geom_sf(colour = "black", size = 0.1) +
+  scale_fill_distiller(palette = "RdBu", 
+                       direction = 1, 
+                       name = "Average SIMD Decile",
+                       limits = c(3.5, 8))  +
+  labs(title = "Average SIMD Decile (1-10) \n per Health Board",
+       subtitle = "Scotland") +
+  theme_void() +
+  theme(plot.title = element_text(face = "bold"), 
+        legend.title = element_text(size = 10))
+
+# Combine maps into single plot
+prescription_map + simd_map
+```
+
+Figure 4. Maps visualising prescription rates across NHS Scotland health boards (left) and average SIMD decile across NHS Scotland health boards (right). In general, areas with higher average deciles see lower prescription rates.
+
+Dumfries and Galloway interestingly has the highest prescription rate, despite not having the lowest average SIMD decile or a cold climate relative to other areas. However, a potential reason for this may be that Dumfries and Galloway has the highest proportion of the population aged 65 and over amongst all Scottish council areas in 2024 (National Records of Scotland, 2025). With COPD prevalence increasing with age and asthma management being more intensive, bronchodilators such as Salbutamol may have a higher demand in elderly populations.
+
+Figures 3 and 4 do still demonstrate an overall trend where areas with higher deprivation have higher prescription rates for Salbutamol, even despite the modest range of the average SIMD deciles across the different health boards . In figure 3, the four lowest ranked health boards all have an average decile of 6.0 or above. A lower SES is linked to higher rates of asthma and COPD due to factors such as increased smoking and poorer housing conditions can drive demand for Salbutamol.
+
+# Limitations
+This report has some limitations, and findings should be approached with a degree of caution.
+
+- Prescribing data does not fully reflect drug consumption levels.
+
+- Latest data for SIMD was last published in 2020. With the report focusing on prescription trends in 2024, there may be some changes in deprivation levels across the health boards between then and now.
+
+- There was not drastic variation amongst average SIMD decile between different health boards. To get a true idea of how deprivation influences prescription rates, it would be more beneficial to analyse SIMD data of each area code, were SIMD varies greatly.
+
+# Conclusion
+
+Through analysis of prescription data from Public Health Scotland, we can see that Salbutamol is a top choice amongst prescribers throughout Scotland to provide acute symptomatic relief for asthma and COPD. 
+
+Analysis of seasonal trends in Salbutamol reveal increases in prescriptions in May and winter months, keeping consistent with pollen and cold air being known triggers of asthma. 
+
+Geographically, prescription rates were varied across the health boards, with a general trend of increased prescription rate in health boards serving more deprived populations. This keeps in line with our established knowledge of how lower SES can fuel health inequalities and impact respiratory health outcomes.
+
+Overall, the prescription trends highlight that population respiratory health is complex and multi-factorial. By further and collecting and studying data, we can develop a deeper understanding to what drives an increased prevelance in conditions like asthma and COPD, and continue to develop strategies to improve respiratory health outcomes at a population level.
+
+# References
+
+Asthma - NHS (2025). Available at: https://www.nhs.uk/conditions/asthma/ (Accessed: 12 November 2025).
+
+Chronic obstructive pulmonary disease (COPD) - NHS (2023). Available at: https://www.nhs.uk/conditions/chronic-obstructive-pulmonary-disease-copd/treatment/ (Accessed: 12 November 2025).
+
+Asthma, acute | Treatment summaries | BNF content published by NICE (2025). Available at: https://bnf.nice.org.uk/treatment-summaries/asthma-acute/ (Accessed: 12 November 2025).
+
+Mid-2024 population estimates - National Records of Scotland (NRS) (2025). Available at: https://www.nrscotland.gov.uk/publications/mid-2024-population-estimates/ (Accessed: 12 November 2025).
+
+Scottish Index of Multiple Deprivation 2020 (no date). Available at: https://www.gov.scot/collections/scottish-index-of-multiple-deprivation-2020/ (Accessed: 12 November 2025).
 
 
