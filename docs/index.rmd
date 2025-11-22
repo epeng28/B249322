@@ -116,8 +116,7 @@ monthly_plot <- salbutamol_monthly %>%
              text = paste0(month, "<br>", "Prescriptions: ", paid_items_total))) +  # Add text information for interactive map.
   geom_line(colour = "steelblue") +
   geom_point(colour = "#2E5D91", size = 2) +
-  labs(title = "Salbutamol Prescriptions \n per Month", 
-       # "\n" for a line break
+  labs(title = "Salbutamol Prescriptions per Month", 
        subtitle = "Scotland (2024)",
        x = "Month", 
        y = "Prescriptions Issued") +
