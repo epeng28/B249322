@@ -12,7 +12,7 @@ output:
 
 ### Introduction
 
-Salbutamol is a short acting β₂-adrenergic agonist used to provided acute relief of symptoms of asthma and chronic obstructive pulmonary disease (COPD). It is a widely prescribed drug, thus making it a useful indicator to make inferences on respiratory health and disease burden across Scotland. This report aims to explore seasonal, geographical and socioeconomic factors in Salbutamol prescription trends throughout Scotland in 2024, using prescribing data by NHS Scotland health board sourced from Public Health Scotland.
+Salbutamol is a short acting β₂-adrenergic agonist used to provided acute relief of symptoms of asthma and chronic obstructive pulmonary disease (COPD). As it is a widely prescribed drug, thus making it a useful indicator to make inferences on respiratory health and disease burden across Scotland. This report aims to explore seasonal, geographical and socioeconomic factors in Salbutamol prescription trends throughout Scotland in 2024, using prescribing data by NHS Scotland health board sourced from Public Health Scotland.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
@@ -20,13 +20,12 @@ knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
 
 ```{r, message = FALSE}
 # Packages Used
-library(tidyverse)
-library(janitor)
-library(gt)
-library(here)
-library(sf)
-library(ggspatial)
-library(patchwork)
+library(tidyverse) # For clean data visualisation and manipulation
+library(janitor) # For consistent formatting of datasets
+library(gt) # For creating gt tables
+library(here) # For reproducible file paths
+library(sf) # For working with spatial data
+library(patchwork) # For combining multiple plots into one
 library(plotly) # For interactive plots
 ```
 
@@ -106,6 +105,7 @@ salbutamol_monthly <- salbutamol %>%
   mutate(
     paid_date_month = parse_date_time(paid_date_month, "ym"),
     month = factor(format(paid_date_month, "%B"), 
+                   #%B formats date to show full month name
                    levels = month.name)) %>% 
   group_by(month) %>% 
   summarise(paid_items_total = sum(number_of_paid_items))
@@ -113,7 +113,7 @@ salbutamol_monthly <- salbutamol %>%
 # Creates a line graph to see monthly prescription trends
 monthly_plot <- salbutamol_monthly %>% 
   ggplot(aes(x = month, y = paid_items_total, group = 1,
-             text = paste0(month, "<br>", "Prescriptions: ", paid_items_total))) +  # Add text information for interactive map.
+             text = paste0(month, "<br>", "Prescriptions: ", paid_items_total))) +  # Add text information for interactive graph.
   geom_line(colour = "steelblue") +
   geom_point(colour = "#2E5D91", size = 2) +
   labs(title = "Salbutamol Prescriptions per Month", 
@@ -220,7 +220,7 @@ table
 
 Figure 3. Table ranking total the Salbutamol prescriptions per 100k people by Scottish health board. Note that an individual may have multiple prescriptions.
 
-```{r, message = FALSE, out.height="30%", out.width="80%", fig.cap="Figure 4. Maps visualising prescription rates across NHS Scotland health boards (left) and average SIMD decile across NHS Scotland health boards(Red- More deprived. Blue- More Affluent) (right). In general, health boards with higher SIMD see lower prescription rates."}
+```{r, message = FALSE, out.height="30%", out.width="80%", fig.cap="Figure 4a. Maps visualising prescription rates across NHS Scotland health boards."}
 # Assessing Salbutamol prescription trends by NHS health board population by creating a map.
 
 # Read NHS health board shapes for map. 
@@ -233,42 +233,52 @@ map <- st_read(here("data", "Week6_NHS_healthboards_2019.shp"),
 prescription_mapped <- 
   full_join(map, salbutamol_data, by = c("HBName" = "hb_name")) %>%      filter(!is.na(HBCode))
 
-# Create function for the maps as multiple will be mapped for visualisation
-map_function <- function(fill_change){prescription_mapped %>% 
-  ggplot(aes(fill = fill_change)) +
+# Create function for the maps as multiple will be created for visualisation
+map_function <- function(fill_change, label){prescription_mapped %>% 
+  ggplot(aes(fill = {{fill_change}},
+             text = paste0(HBName, "<br>", label, ": ", 
+             round({{fill_change}}, 1)))) +
   geom_sf(colour = "black", size = 0.1) +
   theme_void() +
   theme(plot.title = element_text(face = "bold"), 
         legend.title = element_text(size = 10))}
-#Creates map of Prescription rates for each health board.
-prescription_map <- map_function(prescription_mapped$prescriptions_per_100k) +
+
+  #Creates map of Prescription rates for each health board.
+prescription_map <- map_function(fill_change = prescriptions_per_100k, 
+                                 label = "Prescriptions per 100k") +
   scale_fill_distiller(palette = "Blues", 
                        direction = 1, 
                        name = "Prescriptions per 100k") +
-  labs(title = "Salbutamol Prescriptions \n by NHS Healthboard (2024)",  # "\n" serves as a line break.
-       subtitle = "Rate per 100k people")
+  labs(title = "Salbutamol Prescriptions by\n NHS Healthboard (2024)",  
+       subtitle = "Rate per 100k people") # \n serves as a line break
+
+ggplotly(prescription_map, tooltip = "text")
+```
+
+```{r,  message = FALSE, out.height="30%", out.width="80%", fig.cap="Figure 4b. Average SIMD decile across NHS Scotland health boards (red = more deprived, blue = less deprived)."}
 # Creates map of SIMD decile averages for each health board
 simd_map <- 
-  map_function(prescription_mapped$average_decile) +
+  map_function(fill_change = average_decile, 
+               label = "Average Decile") +
   scale_fill_distiller(palette = "RdBu", 
                        direction = 1, 
                        name = "Average SIMD Decile",
                        limits = c(3.5, 8)) +
-  labs(title = "Average SIMD Decile (1-10) \n per Health Board",
+  labs(title = "Average Deprivation Level by\n NHS Health Board (SIMD 2020)",
        subtitle = "Scotland")
-# Combine maps into single plot
-prescription_map + simd_map
+
+ggplotly(simd_map, tooltip = "text")
 ```
 
 Dumfries and Galloway interestingly has the highest prescription rate, despite not having the lowest average SIMD decile or a cold climate relative to other areas. However, a potential reason for this may be that Dumfries and Galloway has the highest proportion of the population aged 65+ amongst all Scottish council areas in 2024 (National Records of Scotland, 2025). With COPD prevalence increasing with age and asthma management being more intensive, bronchodilators such as Salbutamol may have a higher demand in elderly populations.
 
-Figures 3 and 4 do still demonstrate an overall trend where areas with higher deprivation have higher prescription rates for Salbutamol, even despite the modest range of the average SIMD deciles across the different health boards . In figure 3, the four lowest ranked health boards all have an average decile of 6.0 or above. A lower SES is linked to higher rates of asthma and COPD due to factors such as increased smoking and poorer housing conditions can drive demand for Salbutamol.
+Figures 3 and the maps from figure 4 do still demonstrate an overall trend where areas with higher deprivation have higher prescription rates for Salbutamol, even despite the modest range of the average SIMD deciles across the different health boards . In figure 3, the four lowest ranked health boards all have an average decile of 6.0 or above. A lower SES is linked to higher rates of asthma and COPD due to factors such as increased smoking and poorer housing conditions can drive demand for Salbutamol.
 
 ### Limitations
 
 This report has some limitations, and findings should be approached with a degree of caution.
 
--   Prescribing data does not fully reflect drug consumption levels.
+-   Prescribing data does not fully reflect actual drug consumption levels.
 
 -   Latest data for SIMD was last published in 2020. With the report focusing on prescription trends in 2024, there may be some changes in deprivation levels across the health boards between then and now.
 
