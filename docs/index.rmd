@@ -12,7 +12,15 @@ output:
 
 ### Introduction
 
-Salbutamol is a short acting β₂-adrenergic agonist used to provided acute relief of symptoms of asthma and chronic obstructive pulmonary disease (COPD). As it is a widely prescribed drug, thus making it a useful indicator to make inferences on respiratory health and disease burden across Scotland. This report aims to explore seasonal, geographical and socioeconomic factors in Salbutamol prescription trends throughout Scotland in 2024, using prescribing data by NHS Scotland health board sourced from Public Health Scotland.
+Salbutamol is a short acting β₂-adrenergic agonist used to provide acute relief of symptoms of asthma and chronic obstructive pulmonary disease (COPD). As it is a widely prescribed drug, thus making it a useful indicator to make inferences on respiratory health and disease burden across Scotland. This report aims to explore seasonal, geographical and socioeconomic factors in Salbutamol prescription trends throughout Scotland in 2024, using prescribing data by NHS Scotland health board sourced from Public Health Scotland.
+
+Based on current knowledge, we can expect to find:
+
+- Increased prescription numbers towards the winter months, as cold air is a trigger for asthma.
+
+- A potential rise in spring due to increased allergens (e.g. pollen) triggering asthma symptoms.
+
+- Health boards with colder climates (such as NHS Highland) or those who treat a more deprived population (such as NHS Lanarkshire) to have a higher prescription rate.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
@@ -59,38 +67,49 @@ bronchodilators_2024 <- data_2024_with_names %>%
   select(-hb_date_enacted, -hb_date_archived, -country, -dmd_code)
 ```
 
-### Section 1: How Commonly Used is Salbutamol in Relation to Other Bronchodilators?
+### How Commonly Used is Salbutamol in Relation to Other Bronchodilators?
 
-```{r message=FALSE, out.height="50%", out.width="75%", fig.cap="Figure 1."}
+```{r message=FALSE, out.height="50%", fig.cap="Figure 1. Interactive bar chart. Hover mouse over bars to see exact prescription numbers"}
 # Assessing which bronchodilators are the most widely prescribed.
 
 # Finds the top 5 most prescribed drugs amongst the bronchodilators.
-top5_bronchodilators <- bronchodilators_2024 %>% 
-  select(bnf_item_description, number_of_paid_items) %>% 
-  group_by(bnf_item_description) %>%
-  summarise(paid_items_total = sum(number_of_paid_items)) %>% 
-  slice_max(paid_items_total, n = 5)
+top5_bronchodilators <- bronchodilators_2024   %>%
+  mutate(drug_type = if_else(str_starts(bnf_item_code, "0301011R0"),
+                                 "Salbutamol", "Other")) %>% 
+  # Assigns drugs into salbutamol or other. Useful for a creating colour coded bar chart.
+  group_by(bnf_item_description, drug_type) %>%
+  summarise(paid_items_total = sum(number_of_paid_items), 
+            .groups = "drop") %>% 
+    slice_max(paid_items_total, n = 5)
 
 # Creates a bar chart showing top 5 most prescribed bronchodilators.
 count_plot <- top5_bronchodilators %>% 
   ggplot(aes(x= paid_items_total, 
              y= reorder(str_wrap(bnf_item_description, 
                                  width = 30),
-                        paid_items_total))) +
-  geom_col(fill = "steelblue") +
-  labs(title = "Top 5 Most Prescribed Bronchodilators",
+                        paid_items_total),
+                        fill = drug_type, 
+             text = paste0("Prescriptions: ", paid_items_total))) +
+  # Adds text information for interactive graph
+  geom_col() +
+  scale_fill_manual(values = c("Salbutamol" = "steelblue", 
+                               "Other" = "grey"), 
+                    name = "Drug Type") +
+  labs(title = "Top 5 Most Prescribed\n Bronchodilators", 
+       #\n serves as a line break
        subtitle = "Scotland (2024)",
-       x = "Prescriptions Issued", 
-       y = "Bronchodilator") +
+       x = "Prescriptions Issued",
+       y = NULL) +
   theme_minimal() +
   theme(plot.title = element_text(face = "bold"))
 
-count_plot
+# Makes graph interactive
+ggplotly(count_plot, tooltip = "text")
 ```
 
 Based on the graph, Salbutamol-based drugs are dominant in this ranking, with ranks 1, 2 and 5 all representing formulations of Salbutamol. This highlights the widespread usage of Salbutamol in Scotland as well as suggesting a high prevalence of asthma and COPD in the country. It also reflects its role in first line therapy in the management of acute symptoms of asthma recommended by NICE (2025), and its usage as a short acting bronchodilator for breathlessness in COPD, as recommended by the NHS (2023).
 
-### Section 2: How do Salbutamol Prescription Levels Vary per Month?
+### How do Salbutamol Prescription Levels Vary per Month?
 
 ```{r, message = FALSE, out.height = "50%", fig.cap="Figure 2. Interactive line graph. Hover mouse over line graph to see exact figures."}
 # Assessing monthly patterns in Salbutamol prescriptions.
@@ -132,7 +151,7 @@ The line graph increase in prescriptions during the winter months, particularly 
 
 Additionally, graph shows a spike in prescriptions during May. This may be due to higher pollen levels in spring, which is also recognised by the NHS as a trigger for asthma symptoms (NHS, 2025).
 
-### Section 3: Geographical and Socioeconomic Variation in Salbutamol Prescribing
+### Geographical and Socioeconomic Variation in Salbutamol Prescribing
 
 This section aims to explore the geographical and socioeconomic variation in Salbutamol prescription trends.
 
@@ -215,6 +234,7 @@ table <- salbutamol_data %>%
   fns = list("Average"= ~mean(.,na.rm = TRUE)), 
   fmt = list(~ fmt_number(.,decimals = 1))) %>% 
   tab_source_note(source_note = "Source: Public Health Scotland")
+
 table
 ```
 
@@ -272,7 +292,7 @@ ggplotly(simd_map, tooltip = "text")
 
 Dumfries and Galloway interestingly has the highest prescription rate, despite not having the lowest average SIMD decile or a cold climate relative to other areas. However, a potential reason for this may be that Dumfries and Galloway has the highest proportion of the population aged 65+ amongst all Scottish council areas in 2024 (National Records of Scotland, 2025). With COPD prevalence increasing with age and asthma management being more intensive, bronchodilators such as Salbutamol may have a higher demand in elderly populations.
 
-Figures 3 and the maps from figure 4 do still demonstrate an overall trend where areas with higher deprivation have higher prescription rates for Salbutamol, even despite the modest range of the average SIMD deciles across the different health boards . In figure 3, the four lowest ranked health boards all have an average decile of 6.0 or above. A lower SES is linked to higher rates of asthma and COPD due to factors such as increased smoking and poorer housing conditions can drive demand for Salbutamol.
+Figures 3 and the maps from figure 4 do still demonstrate an overall trend where areas with higher deprivation have higher prescription rates for Salbutamol, even despite the modest range of the average SIMD deciles across the different health boards. In figure 3, the four lowest ranked health boards all have an average decile of 6.0 or above. A lower SES is linked to higher rates of asthma and COPD due to factors such as increased smoking and poorer housing conditions can drive demand for Salbutamol.
 
 ### Limitations
 
@@ -283,6 +303,10 @@ This report has some limitations, and findings should be approached with a degre
 -   Latest data for SIMD was last published in 2020. With the report focusing on prescription trends in 2024, there may be some changes in deprivation levels across the health boards between then and now.
 
 -   There was not drastic variation amongst average SIMD deciles between different health boards. To get a true idea of how deprivation influences prescription rates, it would be more beneficial to analyse SIMD data of each area code, were SIMD varies greatly.
+
+### Future Directions
+
+Continuous monitoring of Salbutamol prescriptions is necessary to track respiratory health in Scotland. Future reports can analyse how trends in age structure or smoking rates effect prescription rates. With climate change becoming an increasing concern worldwide, metered-dose inhalers are increasingly being replaced by other more environmentally-friendly  such options as dry powder inhalers. Future research can explore alternative forms of salbutamol or other bronchodilators being prescribed in efforts to preserve climate health. 
 
 ### Conclusion
 
