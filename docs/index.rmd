@@ -12,7 +12,7 @@ output:
 
 ### Introduction
 
-Salbutamol is a short acting β₂-adrenergic agonist used to provide acute relief of symptoms of asthma and chronic obstructive pulmonary disease (COPD). As it is a widely prescribed drug, thus making it a useful indicator to make inferences on respiratory health and disease burden across Scotland. This report aims to explore seasonal, geographical and socioeconomic factors in Salbutamol prescription trends throughout Scotland in 2024, using prescribing data by NHS Scotland health board sourced from Public Health Scotland.
+Salbutamol is a short-acting β₂-adrenergic agonist used to provide acute relief of symptoms of asthma and chronic obstructive pulmonary disease (COPD). As it is a widely prescribed drug, it serves as a useful indicator to make inferences on respiratory health and disease burden across Scotland. This report aims to explore seasonal, geographical and socioeconomic factors in Salbutamol prescription trends throughout Scotland in 2024, using prescribing data by NHS Scotland health board sourced from Public Health Scotland.
 
 Based on current knowledge, we can expect to find:
 
@@ -33,7 +33,6 @@ library(janitor) # For consistent formatting of datasets
 library(gt) # For creating gt tables
 library(here) # For reproducible file paths
 library(sf) # For working with spatial data
-library(patchwork) # For combining multiple plots into one
 library(plotly) # For interactive plots
 ```
 
@@ -147,15 +146,15 @@ monthly_plot <- salbutamol_monthly %>%
 ggplotly(monthly_plot, tooltip = "text")
 ```
 
-The line graph increase in prescriptions during the winter months, particularly in December. This likely reflects the seasonal exacerbations in asthma and COPD symptoms triggered by colder weather. The NHS recognises cold air and infection as triggers for asthma symptoms (NHS, 2025).
+The line graph shows an increase in prescriptions during the winter months, particularly in December. This likely reflects the seasonal exacerbations in asthma and COPD symptoms triggered by colder weather. The NHS recognises cold air and infection as triggers for asthma symptoms (NHS, 2025).
 
-Additionally, graph shows a spike in prescriptions during May. This may be due to higher pollen levels in spring, which is also recognised by the NHS as a trigger for asthma symptoms (NHS, 2025).
+Additionally, the graph shows a spike in prescriptions during May. This may be due to higher pollen levels in spring, which is also recognised by the NHS as a trigger for asthma symptoms (NHS, 2025).
 
 ### Geographical and Socioeconomic Variation in Salbutamol Prescribing
 
 This section aims to explore the geographical and socioeconomic variation in Salbutamol prescription trends.
 
-Deprivation levels were based of the latest data from Scottish Index of Multiple Deprivation (SIMD) in 2020. SIMD bases deprivation of seven domains: income, employment, education, health, access to services, crime and housing. Deprivation levels are split into deciles from 1-10, with decile 1 being most deprived and decile 10 being least deprived. As SIMD data is split across 6,976 areas, the average decile was taken for each health board (Scottish Government, 2020).
+Deprivation levels were based on the latest data from Scottish Index of Multiple Deprivation (SIMD) in 2020. SIMD bases deprivation of seven domains: income, employment, education, health, access to services, crime and housing. Deprivation levels are split into deciles from 1-10, with decile 1 being most deprived and decile 10 being least deprived. As SIMD data is split across 6,976 areas, the average decile was taken for each health board (Scottish Government, 2020).
 
 ```{r, message = FALSE}
 # Data wrangling to produce Salbutamol prescriptions data based on population of health boards across Scotland (2024).
@@ -240,7 +239,7 @@ table
 
 Figure 3. Table ranking total the Salbutamol prescriptions per 100k people by Scottish health board. Note that an individual may have multiple prescriptions.
 
-```{r, message = FALSE, out.height="30%", out.width="80%", fig.cap="Figure 4a. Maps visualising prescription rates across NHS Scotland health boards."}
+```{r, message = FALSE, out.height="30%", out.width="80%", fig.cap="Figure 4a. Map visualising prescription rates across NHS Scotland health boards  (darker blue indicates a higher prescription rate.)"}
 # Assessing Salbutamol prescription trends by NHS health board population by creating a map.
 
 # Read NHS health board shapes for map. 
@@ -292,7 +291,7 @@ ggplotly(simd_map, tooltip = "text")
 
 Dumfries and Galloway interestingly has the highest prescription rate, despite not having the lowest average SIMD decile or a cold climate relative to other areas. However, a potential reason for this may be that Dumfries and Galloway has the highest proportion of the population aged 65+ amongst all Scottish council areas in 2024 (National Records of Scotland, 2025). With COPD prevalence increasing with age and asthma management being more intensive, bronchodilators such as Salbutamol may have a higher demand in elderly populations.
 
-Figures 3 and the maps from figure 4 do still demonstrate an overall trend where areas with higher deprivation have higher prescription rates for Salbutamol, even despite the modest range of the average SIMD deciles across the different health boards. In figure 3, the four lowest ranked health boards all have an average decile of 6.0 or above. A lower SES is linked to higher rates of asthma and COPD due to factors such as increased smoking and poorer housing conditions can drive demand for Salbutamol.
+Figures 3 and the maps from figure 4 do still demonstrate an overall trend where areas with higher deprivation have higher prescription rates for Salbutamol, even with the modest range of the average SIMD deciles across the different health boards. In figure 3, the four lowest ranked health boards all have an average decile of 6.0 or above. A lower SES is linked to higher rates of asthma and COPD due to factors such as increased smoking and poorer housing conditions can drive demand for Salbutamol.
 
 ### Limitations
 
@@ -302,11 +301,11 @@ This report has some limitations, and findings should be approached with a degre
 
 -   Latest data for SIMD was last published in 2020. With the report focusing on prescription trends in 2024, there may be some changes in deprivation levels across the health boards between then and now.
 
--   There was not drastic variation amongst average SIMD deciles between different health boards. To get a true idea of how deprivation influences prescription rates, it would be more beneficial to analyse SIMD data of each area code, were SIMD varies greatly.
+-   There was not drastic variation amongst average SIMD deciles between different health boards. To get a true idea of how deprivation influences prescription rates, it would be more beneficial to analyse SIMD data of each area code, where SIMD varies greatly.
 
 ### Future Directions
 
-Continuous monitoring of Salbutamol prescriptions is necessary to track respiratory health in Scotland. Future reports can analyse how trends in age structure or smoking rates effect prescription rates. With climate change becoming an increasing concern worldwide, metered-dose inhalers are increasingly being replaced by other more environmentally-friendly  such options as dry powder inhalers. Future research can explore alternative forms of salbutamol or other bronchodilators being prescribed in efforts to preserve climate health. 
+Continuous monitoring of Salbutamol prescriptions is necessary to track respiratory health in Scotland. Future reports can analyse how trends in age structure or smoking rates affect prescription rates. With climate change becoming an increasing concern worldwide, metered-dose inhalers are increasingly being replaced by other more environmentally friendly  such options as dry-powder inhalers. Future research can explore alternative forms of salbutamol or other bronchodilators being prescribed in efforts to combat climate change. 
 
 ### Conclusion
 
@@ -316,7 +315,7 @@ Analysis of seasonal trends in Salbutamol reveal increases in prescriptions in M
 
 Geographically, prescription rates were varied across the health boards, with a general trend of increased prescription rate in health boards serving more deprived populations. This keeps in line with our established knowledge of how lower SES can fuel health inequalities and impact respiratory health outcomes.
 
-Overall, the prescription trends highlight that population respiratory health is complex and multi-factorial. By further collecting and studying data, we can develop a deeper understanding to what drives an increased prevelance for conditions like asthma and COPD, and continue to develop strategies to improve respiratory health outcomes at a population level.
+Overall, the prescription trends highlight that population respiratory health is complex and multi-factorial. By further collecting and studying data, we can develop a deeper understanding to what drives an increased prevalence for conditions like asthma and COPD, and continue to develop strategies to improve respiratory health outcomes at a population level.
 
 ### References
 
