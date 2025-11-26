@@ -188,7 +188,7 @@ salbutamol_population <-
          = prescriptions/population_2024*100000) %>% 
   arrange(desc(prescriptions_per_100k)) %>% 
   mutate(Rank = row_number()) %>% 
-  select(Rank, hb_name, prescriptions_per_100k, prescriptions, population_2024)
+  select(Rank, hb_name, prescriptions_per_100k, prescriptions, population_2024) # Ensure they are in correct order so that columns are in order for gt table.
 ```
 
 ```{r, message = FALSE}
