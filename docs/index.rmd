@@ -239,7 +239,7 @@ table
 
 Figure 3. Table ranking total the Salbutamol prescriptions per 100k people by Scottish health board. Note that an individual may have multiple prescriptions.
 
-```{r, message = FALSE, out.height="30%", out.width="80%", fig.cap="Figure 4a. Map visualising prescription rates across NHS Scotland health boards  (darker blue indicates a higher prescription rate)."}
+```{r, message = FALSE, out.height="30%", out.width="80%", fig.cap="Figure 4a. Interactive map visualising prescription rates across NHS Scotland health boards  (darker blue indicates a higher prescription rate)."}
 # Assessing Salbutamol prescription trends by NHS health board population by creating a map.
 
 # Read NHS health board shapes for map. 
@@ -274,7 +274,7 @@ prescription_map <- map_function(fill_change = prescriptions_per_100k,
 ggplotly(prescription_map, tooltip = "text")
 ```
 
-```{r,  message = FALSE, out.height="30%", out.width="80%", fig.cap="Figure 4b. Average SIMD decile across NHS Scotland health boards (red = more deprived, blue = less deprived)."}
+```{r,  message = FALSE, out.height="30%", out.width="80%", fig.cap="Figure 4b. Interactive map visualising average SIMD decile (red = more deprived, blue = less deprived)."}
 # Creates map of SIMD decile averages for each health board
 simd_map <- 
   map_function(fill_change = average_decile, 
@@ -291,7 +291,7 @@ ggplotly(simd_map, tooltip = "text")
 
 Dumfries and Galloway interestingly has the highest prescription rate, despite not having the lowest average SIMD decile or a cold climate relative to other areas. However, a potential reason for this may be that Dumfries and Galloway has the highest proportion of the population aged 65+ amongst all Scottish council areas in 2024 (National Records of Scotland, 2025). With COPD prevalence increasing with age and asthma management being more intensive, bronchodilators such as Salbutamol may have a higher demand in elderly populations.
 
-Figure 3 and the maps from figure 4 do still demonstrate an overall trend where areas with higher deprivation have higher prescription rates for Salbutamol, even with the modest range of the average SIMD deciles across the different health boards. In figure 3, the four lowest ranked health boards all have an average decile of 6.0 or above. A lower SES is linked to higher rates of asthma and COPD due to factors such as increased smoking and poorer housing conditions which can drive demand for Salbutamol.
+Figure 3 and the maps from figure 4 do still demonstrate an overall trend where areas with higher deprivation have higher prescription rates for Salbutamol, even with the modest range of the average SIMD deciles across the different health boards. In figure 3, the four lowest ranked health boards all have an average decile above 6. A lower SES is linked to higher rates of asthma and COPD due to factors such as increased smoking and poorer housing conditions which can drive demand for Salbutamol.
 
 ### Limitations
 
